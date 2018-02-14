@@ -217,12 +217,23 @@ public interface ValueMetaInterface extends Cloneable {
    */
   int TRIM_TYPE_BOTH = 3;
 
+  /** The Constant trimTypeCodes. */
+  String[] trimTypeCodes = new String[] { "none", "left", "right", "both", };
+
   /** Default integer length for hardcoded metadata integers */
   int DEFAULT_INTEGER_LENGTH = 10;
 
   static String getTypeDescription( int type ) {
     try {
       return typeCodes[ type ];
+    } catch ( Exception e ) {
+      return "unknown/illegal";
+    }
+  }
+
+  public static String getTrimTypeDescription( int type ) {
+    try {
+      return trimTypeCodes[ type ];
     } catch ( Exception e ) {
       return "unknown/illegal";
     }
