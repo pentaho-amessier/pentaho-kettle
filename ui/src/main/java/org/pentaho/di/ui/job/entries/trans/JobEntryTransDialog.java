@@ -22,6 +22,8 @@
 
 package org.pentaho.di.ui.job.entries.trans;
 
+import org.eclipse.jface.dialogs.Dialog;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
@@ -60,6 +62,7 @@ import org.pentaho.di.trans.TransExecutionConfiguration;
 import org.pentaho.di.trans.TransMeta;
 import org.pentaho.di.ui.core.ConstUI;
 import org.pentaho.di.ui.core.dialog.ErrorDialog;
+import org.pentaho.di.ui.core.dialog.SimpleMessageDialog;
 import org.pentaho.di.ui.core.gui.WindowProperty;
 import org.pentaho.di.ui.core.widget.ComboVar;
 import org.pentaho.di.ui.job.dialog.JobDialog;
@@ -624,10 +627,16 @@ public class JobEntryTransDialog extends JobEntryBaseDialog implements JobEntryD
 
   protected void ok() {
     if ( Utils.isEmpty( wName.getText() ) ) {
-      MessageBox mb = new MessageBox( shell, SWT.OK | SWT.ICON_ERROR );
-      mb.setText( BaseMessages.getString( PKG, "System.StepJobEntryNameMissing.Title" ) );
-      mb.setMessage( BaseMessages.getString( PKG, "System.JobEntryNameMissing.Msg" ) );
-      mb.open();
+      final Dialog dialog = new SimpleMessageDialog( shell,
+        BaseMessages.getString( PKG, "System.StepJobEntryNameMissing.Title" ),
+        BaseMessages.getString( PKG, "System.JobEntryNameMissing.Msg" ), MessageDialog.ERROR );
+      dialog.open();
+      return;
+    } else if ( Utils.isEmpty( wPath.getText() ) ) {
+      final Dialog dialog = new SimpleMessageDialog( shell,
+        BaseMessages.getString( PKG, "System.JobEntryNameMissing.Title" ),
+        BaseMessages.getString( PKG, "System.JobEntryTansPathMissing.Msg" ), MessageDialog.ERROR );
+      dialog.open();
       return;
     }
     jobEntry.setName( wName.getText() );

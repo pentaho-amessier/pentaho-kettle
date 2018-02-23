@@ -24,6 +24,8 @@ package org.pentaho.di.ui.spoon.delegates;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.jface.dialogs.Dialog;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.dialogs.ProgressMonitorDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.wizard.Wizard;
@@ -68,6 +70,7 @@ import org.pentaho.di.trans.steps.tableinput.TableInputMeta;
 import org.pentaho.di.trans.steps.tableoutput.TableOutputMeta;
 import org.pentaho.di.ui.core.PropsUI;
 import org.pentaho.di.ui.core.dialog.ErrorDialog;
+import org.pentaho.di.ui.core.dialog.SimpleMessageDialog;
 import org.pentaho.di.ui.core.gui.GUIResource;
 import org.pentaho.di.ui.job.dialog.JobExecutionConfigurationDialog;
 import org.pentaho.di.ui.spoon.Spoon;
@@ -1335,7 +1338,16 @@ public class SpoonJobDelegate extends SpoonDelegate {
     executionConfiguration.setStartCopyName( startCopyName );
     executionConfiguration.setStartCopyNr( startCopyNr );
 
-    executionConfiguration.getUsedArguments( jobMeta, spoon.getArguments(), spoon.getMetaStore() );
+    try {
+      executionConfiguration.getUsedArguments( jobMeta, spoon.getArguments(), spoon.getMetaStore() );
+    } catch ( Exception e ) {
+      final Dialog dialog = new SimpleMessageDialog( spoon.getShell(),
+        BaseMessages.getString( PKG, "Spoon.Dialog.BadArguments.Title" ),
+        BaseMessages.getString( PKG, "Spoon.Dialog.BadArguments.Message" ), MessageDialog.ERROR );
+      dialog.open();
+
+      return;
+    }
     executionConfiguration.setLogLevel( DefaultLogLevel.getLogLevel() );
 
     JobExecutionConfigurationDialog dialog = newJobExecutionConfigurationDialog( spoon.getShell(),
