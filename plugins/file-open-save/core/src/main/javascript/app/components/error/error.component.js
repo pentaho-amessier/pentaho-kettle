@@ -126,6 +126,7 @@ define([
      * 13. Unable to delete folder b/c in use
      * 14. Unable to delete file b/c in use
      * 15. Unable to rename folder b/c it has an open file in it or a subfolder of it
+     * 16. Unable to open recent
      *
      * @private
      */
@@ -284,6 +285,12 @@ define([
             i18n.get("file-open-save-plugin.error.unable-to-rename-folder-opened.bottom.message"),
             "",
             i18n.get("file-open-save-plugin.error.unable-to-rename-folder-opened.close.button"));
+          break;
+        case 16:// Unable to Open Recent
+          _setMessage(i18n.get("file-open-save-plugin.missing-recent.title.title"),
+              i18n.get("file-open-save-plugin.missing-recent.title.message"),
+              "", "", "", "",
+              i18n.get("file-open-save-plugin.missing-recent.close.button"));
           break;
         default:
           _setMessage("", "", "", "", "", "", "");

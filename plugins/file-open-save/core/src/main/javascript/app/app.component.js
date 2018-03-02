@@ -400,7 +400,12 @@ define([
         if (vm.selectedFolder === "Recents" && vm.origin === "spoon") {
           dt.openRecent(file.repository + ":" + (file.username ? file.username : ""),
             file.objectId.id).then(function(response) {
-              _closeBrowser();
+              //_closeBrowser();
+              if (response.status === 200) {
+                _closeBrowser();
+              } else {
+                _triggerError(15);
+              }
             });
         } else {
           select(file.objectId.id, file.name, file.path, file.type);
@@ -409,7 +414,12 @@ define([
         if (file.repository) {
           dt.openRecent(file.repository + ":" + (file.username ? file.username : ""),
             file.objectId.id).then(function(response) {
-              _closeBrowser();
+              //_closeBrowser();
+              if (response.status === 200) {
+                _closeBrowser();
+              } else {
+                _triggerError(15);
+              }
             });
         } else {
           dt.openFile(file.objectId.id, file.type).then(function(response) {

@@ -464,14 +464,15 @@ public class RepositoryBrowserController {
     } else {
       final LastUsedFile file = getSpoon().getLastUsedRepoFile( repo, id );
       if ( repo != null && repo.toLowerCase().startsWith( getSpoon().getRepositoryName().toLowerCase() + ":" ) ) {
-        // TODO: how to we open a thin dialog?
-        final Dialog dlg = new SimpleMessageDialog( getSpoon().getShell(),
-          BaseMessages.getString( Spoon.class, "Spoon.Dialog.MissingRecentFile.Title" ),
-          BaseMessages.getString( Spoon.class, "Spoon.Dialog.MissingRecentFile.Message" ), MessageDialog.ERROR );
-        getSpoon().getDisplay().syncExec( () -> {
-          dlg.open();
-        } );
         PropsUI.removeRecent( getSpoon().getRepository().getName(), file.getDirectory(), file.getFilename() );
+        // TODO: how to we open a thin dialog?
+        /*final Dialog dlg = new SimpleMessageDialog( getSpoon().getShell(),
+          BaseMessages.getString( Spoon.class, "Spoon.Dialog.MissingRecentFile.Title" ),
+          BaseMessages.getString( Spoon.class, "Spoon.Dialog.MissingRecentFile.Message" ), MessageDialog.ERROR );*/
+        getSpoon().getDisplay().syncExec( () -> {
+          //dlg.open();
+          getSpoon().addMenuLast();
+        } );
       }
       return false;
     }
