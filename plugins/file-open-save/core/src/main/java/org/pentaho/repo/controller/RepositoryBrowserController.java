@@ -17,6 +17,8 @@ package org.pentaho.repo.controller;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.BooleanUtils;
+import org.eclipse.jface.dialogs.Dialog;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -27,6 +29,7 @@ import org.pentaho.di.core.exception.KettleJobException;
 import org.pentaho.di.core.exception.KettleObjectExistsException;
 import org.pentaho.di.core.exception.KettleTransException;
 import org.pentaho.di.core.util.Utils;
+import org.pentaho.di.i18n.BaseMessages;
 import org.pentaho.di.job.JobMeta;
 import org.pentaho.di.repository.IUser;
 import org.pentaho.di.repository.ObjectId;
@@ -39,19 +42,20 @@ import org.pentaho.di.repository.RepositoryObjectInterface;
 import org.pentaho.di.repository.RepositoryObjectType;
 import org.pentaho.di.trans.TransMeta;
 import org.pentaho.di.ui.core.PropsUI;
+import org.pentaho.di.ui.core.dialog.SimpleMessageDialog;
 import org.pentaho.di.ui.spoon.Spoon;
 import org.pentaho.repo.model.RepositoryDirectory;
 import org.pentaho.repo.model.RepositoryFile;
 import org.pentaho.repo.model.RepositoryName;
 import org.pentaho.repo.util.Util;
 
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
-import java.util.Date;
-import java.util.List;
-import java.util.LinkedList;
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.function.Supplier;
 
 /**
@@ -192,14 +196,22 @@ public class RepositoryBrowserController {
           if ( isJobOpened( id, path, name ) ) {
             throw new KettleJobException();
           }
-          removeRecent( id, type );
+          PropsUI.removeRecent( getRepository(), id, type );
+          // re-build the 'File > Open Recent' menu, now that a file has been removed
+          getSpoon().getDisplay().asyncExec( () -> {
+            getSpoon().addMenuLast();
+          } );
           getRepository().deleteJob( () -> id );
           break;
         case "transformation":
           if ( isTransOpened( id, path, name ) ) {
             throw new KettleTransException();
           }
-          removeRecent( id, type );
+          PropsUI.removeRecent( getRepository(), id, type );
+          // re-build the 'File > Open Recent' menu, now that a file has been removed
+          getSpoon().getDisplay().asyncExec( () -> {
+            getSpoon().addMenuLast();
+          } );
           getRepository().deleteTransformation( () -> id );
           break;
         case "folder":
@@ -219,31 +231,6 @@ public class RepositoryBrowserController {
     } catch ( Exception e ) {
       return false;
     }
-  }
-
-  private boolean removeRecent( String id, String type ) {
-    RepositoryObject repositoryObject = null;
-    try {
-      repositoryObject = getRepository().getObjectInformation( () -> id,
-        ( type == "transformation" ? RepositoryObjectType.TRANSFORMATION : RepositoryObjectType.JOB ) );
-    } catch ( Exception e ) {
-      return false;
-    }
-
-    if ( repositoryObject != null ) {
-      Collection<List<LastUsedFile>> lastUsedRepoFiles = PropsUI.getInstance().getLastUsedRepoFiles().values();
-      for ( List<LastUsedFile> lastUsedFiles : lastUsedRepoFiles ) {
-        for ( LastUsedFile lastUsedFile : lastUsedFiles ) {
-          if ( lastUsedFile.getDirectory().equals( repositoryObject.getRepositoryDirectory().getPath() ) && lastUsedFile
-            .getFilename().equals( repositoryObject.getName() ) ) {
-            lastUsedFiles.remove( lastUsedFile );
-            return true;
-          }
-        }
-      }
-    }
-
-    return true;
   }
 
   private boolean renameRecent( String id, String type, String name ) {
@@ -467,10 +454,27 @@ public class RepositoryBrowserController {
     return repositoryFiles;
   }
 
-  public void openRecentFile( String repo, String id ) {
-    getSpoon().getDisplay().asyncExec( () -> {
-      getSpoon().lastRepoFileSelect( repo, id );
-    } );
+  public boolean openRecentFile( String repo, String id ) {
+    // does the file exist?
+    if ( getSpoon().recentRepoFileExists( repo, id ) ) {
+      getSpoon().getDisplay().asyncExec( () -> {
+        getSpoon().lastRepoFileSelect( repo, id );
+      } );
+      return true;
+    } else {
+      final LastUsedFile file = getSpoon().getLastUsedRepoFile( repo, id );
+      if ( repo != null && repo.toLowerCase().startsWith( getSpoon().getRepositoryName().toLowerCase() + ":" ) ) {
+        // TODO: how to we open a thin dialog?
+        final Dialog dlg = new SimpleMessageDialog( getSpoon().getShell(),
+          BaseMessages.getString( Spoon.class, "Spoon.Dialog.MissingRecentFile.Title" ),
+          BaseMessages.getString( Spoon.class, "Spoon.Dialog.MissingRecentFile.Message" ), MessageDialog.ERROR );
+        getSpoon().getDisplay().syncExec( () -> {
+          dlg.open();
+        } );
+        PropsUI.removeRecent( getSpoon().getRepository().getName(), file.getDirectory(), file.getFilename() );
+      }
+      return false;
+    }
   }
 
   private void createRepositoryDirectory( RepositoryDirectoryInterface repositoryDirectoryInterface,
