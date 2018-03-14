@@ -42,6 +42,7 @@ public class SimpleMessageDialog extends MessageDialog {
   public static final int DEFULT_WIDTH = 450;
 
   private int width;
+  private int buttonWidth;
 
   /**
    * Creates a new dialog with the button label set to "Ok", dialog width set to {@link #DEFULT_WIDTH} and button width
@@ -91,6 +92,7 @@ public class SimpleMessageDialog extends MessageDialog {
                               final String buttonLabel, final int width, final int buttonWidth ) {
     super( parentShell, title, null, message, dialogType, new String[] { buttonLabel }, 0 );
     this.width = width;
+    this.buttonWidth = buttonWidth;
   }
 
   /**
