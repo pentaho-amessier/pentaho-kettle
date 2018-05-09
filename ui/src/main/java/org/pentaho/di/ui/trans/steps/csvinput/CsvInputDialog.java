@@ -28,8 +28,12 @@ import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.provider.local.LocalFile;
@@ -97,12 +101,15 @@ import org.pentaho.di.ui.spoon.Spoon;
 import org.pentaho.di.ui.spoon.trans.TransGraph;
 import org.pentaho.di.ui.trans.dialog.TransPreviewProgressDialog;
 import org.pentaho.di.ui.trans.step.BaseStepDialog;
+import org.pentaho.di.ui.trans.step.common.CommonStepDialog;
+import org.pentaho.di.ui.trans.step.common.GetFieldsSampleSizeDialog;
 import org.pentaho.di.ui.trans.steps.textfileinput.TextFileCSVImportProgressDialog;
 
-public class CsvInputDialog extends BaseStepDialog implements StepDialogInterface {
-  private static Class<?> PKG = CsvInput.class; // for i18n purposes, needed by Translator2!!
+//public class CsvInputDialog extends BaseStepDialog implements StepDialogInterface {
 
-  private CsvInputMeta inputMeta;
+public class CsvInputDialog extends CommonStepDialog<CsvInputMeta> {
+
+  private static Class<?> PKG = CsvInput.class; // for i18n purposes, needed by Translator2!!
 
   private TextVar wFilename;
   private CCombo wFilenameField;
@@ -117,7 +124,6 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
   private Button wHeaderPresent;
   private FormData fdAddResult;
   private FormData fdlAddResult;
-  private TableView wFields;
   private Label wlAddResult;
   private Button wAddResult;
   private boolean isReceivingInput;
@@ -134,40 +140,29 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
   private AtomicBoolean previewBusy;
 
   public CsvInputDialog( Shell parent, Object in, TransMeta tr, String sname ) {
-    super( parent, (BaseStepMeta) in, tr, sname );
-    inputMeta = (CsvInputMeta) in;
+    super( parent, in, tr, sname );
   }
 
-  public String open() {
-    Shell parent = getParent();
-    Display display = parent.getDisplay();
+  @Override
+  protected void buildHeader() {
+    // until such a time that we update UX for this step, don't build the header
+  }
 
-    shell = new Shell( parent, SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MIN | SWT.MAX );
-    props.setLook( shell );
-    setShellImage( shell, inputMeta );
+  @Override
+  protected void buildFooter() {
+    // until such a time that we update UX for this step, don't build the footer
+  }
 
-    ModifyListener lsMod = new ModifyListener() {
-      public void modifyText( ModifyEvent e ) {
-        inputMeta.setChanged();
-      }
-    };
-    changed = inputMeta.hasChanged();
+  @Override
+  protected void setPreferredSize() {
+    shell.setSize( 1000, 700 );
+  }
 
-    ModifyListener lsContent = new ModifyListener() {
-      @Override
-      public void modifyText( ModifyEvent arg0 ) {
-        // asyncUpdatePreview();
-      }
-    };
+  @Override
+  protected void buildBody() {
+
     initializing = true;
     previewBusy = new AtomicBoolean( false );
-
-    FormLayout formLayout = new FormLayout();
-    formLayout.marginWidth = Const.FORM_MARGIN;
-    formLayout.marginHeight = Const.FORM_MARGIN;
-
-    shell.setLayout( formLayout );
-    shell.setText( BaseMessages.getString( PKG, "CsvInputDialog.Shell.Title" ) );
 
     int middle = props.getMiddlePct();
     int margin = Const.MARGIN;
@@ -211,7 +206,7 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
       // The filename field ...
       //
       Label wlFilename = new Label( shell, SWT.RIGHT );
-      wlFilename.setText( BaseMessages.getString( PKG, inputMeta.getDescription( "FILENAME_FIELD" ) ) );
+      wlFilename.setText( BaseMessages.getString( PKG, meta.getDescription( "FILENAME_FIELD" ) ) );
       props.setLook( wlFilename );
       FormData fdlFilename = new FormData();
       fdlFilename.top = new FormAttachment( lastControl, margin );
@@ -232,7 +227,7 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
       // Checkbox to include the filename in the output...
       //
       Label wlIncludeFilename = new Label( shell, SWT.RIGHT );
-      wlIncludeFilename.setText( BaseMessages.getString( PKG, inputMeta.getDescription( "INCLUDE_FILENAME" ) ) );
+      wlIncludeFilename.setText( BaseMessages.getString( PKG, meta.getDescription( "INCLUDE_FILENAME" ) ) );
       props.setLook( wlIncludeFilename );
       FormData fdlIncludeFilename = new FormData();
       fdlIncludeFilename.top = new FormAttachment( lastControl, margin );
@@ -266,7 +261,7 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
       // The field itself...
       //
       Label wlFilename = new Label( shell, SWT.RIGHT );
-      wlFilename.setText( BaseMessages.getString( PKG, inputMeta.getDescription( "FILENAME" ) ) );
+      wlFilename.setText( BaseMessages.getString( PKG, meta.getDescription( "FILENAME" ) ) );
       props.setLook( wlFilename );
       FormData fdlFilename = new FormData();
       fdlFilename.top = new FormAttachment( lastControl, margin );
@@ -291,7 +286,7 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
 
     // delimiter
     Label wlDelimiter = new Label( shell, SWT.RIGHT );
-    wlDelimiter.setText( BaseMessages.getString( PKG, inputMeta.getDescription( "DELIMITER" ) ) );
+    wlDelimiter.setText( BaseMessages.getString( PKG, meta.getDescription( "DELIMITER" ) ) );
     props.setLook( wlDelimiter );
     FormData fdlDelimiter = new FormData();
     fdlDelimiter.top = new FormAttachment( lastControl, margin );
@@ -313,12 +308,11 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
     fdDelimiter.left = new FormAttachment( middle, 0 );
     fdDelimiter.right = new FormAttachment( wbDelimiter, -margin );
     wDelimiter.setLayoutData( fdDelimiter );
-    wDelimiter.addModifyListener( lsContent );
     lastControl = wDelimiter;
 
     // enclosure
     Label wlEnclosure = new Label( shell, SWT.RIGHT );
-    wlEnclosure.setText( BaseMessages.getString( PKG, inputMeta.getDescription( "ENCLOSURE" ) ) );
+    wlEnclosure.setText( BaseMessages.getString( PKG, meta.getDescription( "ENCLOSURE" ) ) );
     props.setLook( wlEnclosure );
     FormData fdlEnclosure = new FormData();
     fdlEnclosure.top = new FormAttachment( lastControl, margin );
@@ -333,13 +327,12 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
     fdEnclosure.left = new FormAttachment( middle, 0 );
     fdEnclosure.right = new FormAttachment( 100, 0 );
     wEnclosure.setLayoutData( fdEnclosure );
-    wEnclosure.addModifyListener( lsContent );
     lastControl = wEnclosure;
 
     // bufferSize
     //
     Label wlBufferSize = new Label( shell, SWT.RIGHT );
-    wlBufferSize.setText( BaseMessages.getString( PKG, inputMeta.getDescription( "BUFFERSIZE" ) ) );
+    wlBufferSize.setText( BaseMessages.getString( PKG, meta.getDescription( "BUFFERSIZE" ) ) );
     props.setLook( wlBufferSize );
     FormData fdlBufferSize = new FormData();
     fdlBufferSize.top = new FormAttachment( lastControl, margin );
@@ -359,7 +352,7 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
     // performingLazyConversion?
     //
     Label wlLazyConversion = new Label( shell, SWT.RIGHT );
-    wlLazyConversion.setText( BaseMessages.getString( PKG, inputMeta.getDescription( "LAZY_CONVERSION" ) ) );
+    wlLazyConversion.setText( BaseMessages.getString( PKG, meta.getDescription( "LAZY_CONVERSION" ) ) );
     props.setLook( wlLazyConversion );
     FormData fdlLazyConversion = new FormData();
     fdlLazyConversion.top = new FormAttachment( lastControl, margin );
@@ -378,7 +371,7 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
     // header row?
     //
     Label wlHeaderPresent = new Label( shell, SWT.RIGHT );
-    wlHeaderPresent.setText( BaseMessages.getString( PKG, inputMeta.getDescription( "HEADER_PRESENT" ) ) );
+    wlHeaderPresent.setText( BaseMessages.getString( PKG, meta.getDescription( "HEADER_PRESENT" ) ) );
     props.setLook( wlHeaderPresent );
     FormData fdlHeaderPresent = new FormData();
     fdlHeaderPresent.top = new FormAttachment( lastControl, margin );
@@ -400,7 +393,7 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
     lastControl = wHeaderPresent;
 
     wlAddResult = new Label( shell, SWT.RIGHT );
-    wlAddResult.setText( BaseMessages.getString( PKG, inputMeta.getDescription( "ADD_FILENAME_RESULT" ) ) );
+    wlAddResult.setText( BaseMessages.getString( PKG, meta.getDescription( "ADD_FILENAME_RESULT" ) ) );
     props.setLook( wlAddResult );
     fdlAddResult = new FormData();
     fdlAddResult.left = new FormAttachment( 0, 0 );
@@ -409,7 +402,7 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
     wlAddResult.setLayoutData( fdlAddResult );
     wAddResult = new Button( shell, SWT.CHECK );
     props.setLook( wAddResult );
-    wAddResult.setToolTipText( BaseMessages.getString( PKG, inputMeta.getTooltip( "ADD_FILENAME_RESULT" ) ) );
+    wAddResult.setToolTipText( BaseMessages.getString( PKG, meta.getTooltip( "ADD_FILENAME_RESULT" ) ) );
     fdAddResult = new FormData();
     fdAddResult.left = new FormAttachment( middle, 0 );
     fdAddResult.top = new FormAttachment( wHeaderPresent, margin );
@@ -419,7 +412,7 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
     // The field itself...
     //
     Label wlRowNumField = new Label( shell, SWT.RIGHT );
-    wlRowNumField.setText( BaseMessages.getString( PKG, inputMeta.getDescription( "ROW_NUM_FIELD" ) ) );
+    wlRowNumField.setText( BaseMessages.getString( PKG, meta.getDescription( "ROW_NUM_FIELD" ) ) );
     props.setLook( wlRowNumField );
     FormData fdlRowNumField = new FormData();
     fdlRowNumField.top = new FormAttachment( lastControl, margin );
@@ -439,7 +432,7 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
     // running in parallel?
     //
     wlRunningInParallel = new Label( shell, SWT.RIGHT );
-    wlRunningInParallel.setText( BaseMessages.getString( PKG, inputMeta.getDescription( "PARALLEL" ) ) );
+    wlRunningInParallel.setText( BaseMessages.getString( PKG, meta.getDescription( "PARALLEL" ) ) );
     props.setLook( wlRunningInParallel );
     FormData fdlRunningInParallel = new FormData();
     fdlRunningInParallel.top = new FormAttachment( lastControl, margin );
@@ -457,7 +450,7 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
     // Is a new line possible in a field?
     //
     Label wlNewlinePossible = new Label( shell, SWT.RIGHT );
-    wlNewlinePossible.setText( BaseMessages.getString( PKG, inputMeta.getDescription( "NEWLINE_POSSIBLE" ) ) );
+    wlNewlinePossible.setText( BaseMessages.getString( PKG, meta.getDescription( "NEWLINE_POSSIBLE" ) ) );
     props.setLook( wlNewlinePossible );
     FormData fdlNewlinePossible = new FormData();
     fdlNewlinePossible.top = new FormAttachment( lastControl, margin );
@@ -485,7 +478,7 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
 
     // Encoding
     Label wlEncoding = new Label( shell, SWT.RIGHT );
-    wlEncoding.setText( BaseMessages.getString( PKG, inputMeta.getDescription( "ENCODING" ) ) );
+    wlEncoding.setText( BaseMessages.getString( PKG, meta.getDescription( "ENCODING" ) ) );
     props.setLook( wlEncoding );
     FormData fdlEncoding = new FormData();
     fdlEncoding.top = new FormAttachment( lastControl, margin );
@@ -500,7 +493,6 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
     fdEncoding.left = new FormAttachment( middle, 0 );
     fdEncoding.right = new FormAttachment( 100, 0 );
     wEncoding.setLayoutData( fdEncoding );
-    wEncoding.addModifyListener( lsContent );
     lastControl = wEncoding;
 
     wEncoding.addFocusListener( new FocusListener() {
@@ -520,14 +512,18 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
     //
     wOK = new Button( shell, SWT.PUSH );
     wOK.setText( BaseMessages.getString( PKG, "System.Button.OK" ) );
+    wOK.addListener( SWT.Selection, lsOK );
     wCancel = new Button( shell, SWT.PUSH );
     wCancel.setText( BaseMessages.getString( PKG, "System.Button.Cancel" ) );
+    wCancel.addListener( SWT.Selection, lsCancel );
     wPreview = new Button( shell, SWT.PUSH );
     wPreview.setText( BaseMessages.getString( PKG, "System.Button.Preview" ) );
     wPreview.setEnabled( !isReceivingInput );
+    wPreview.addListener( SWT.Selection, lsPreview );
     wGet = new Button( shell, SWT.PUSH );
     wGet.setText( BaseMessages.getString( PKG, "System.Button.GetFields" ) );
     wGet.setEnabled( !isReceivingInput );
+    wGet.addSelectionListener( lsGetFields );
 
     setButtonPositions( new Button[] { wOK, wGet, wPreview, wCancel }, margin, null );
 
@@ -535,31 +531,31 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
     ColumnInfo[] colinf =
       new ColumnInfo[] {
         new ColumnInfo(
-          BaseMessages.getString( PKG, inputMeta.getDescription( "FIELD_NAME" ) ),
+          BaseMessages.getString( PKG, meta.getDescription( "FIELD_NAME" ) ),
           ColumnInfo.COLUMN_TYPE_TEXT, false ),
         new ColumnInfo(
-          BaseMessages.getString( PKG, inputMeta.getDescription( "FIELD_TYPE" ) ),
+          BaseMessages.getString( PKG, meta.getDescription( "FIELD_TYPE" ) ),
           ColumnInfo.COLUMN_TYPE_CCOMBO, ValueMetaFactory.getValueMetaNames(), true ),
         new ColumnInfo(
-          BaseMessages.getString( PKG, inputMeta.getDescription( "FIELD_FORMAT" ) ),
+          BaseMessages.getString( PKG, meta.getDescription( "FIELD_FORMAT" ) ),
           ColumnInfo.COLUMN_TYPE_FORMAT, 2 ),
         new ColumnInfo(
-          BaseMessages.getString( PKG, inputMeta.getDescription( "FIELD_LENGTH" ) ),
+          BaseMessages.getString( PKG, meta.getDescription( "FIELD_LENGTH" ) ),
           ColumnInfo.COLUMN_TYPE_TEXT, false ),
         new ColumnInfo(
-          BaseMessages.getString( PKG, inputMeta.getDescription( "FIELD_PRECISION" ) ),
+          BaseMessages.getString( PKG, meta.getDescription( "FIELD_PRECISION" ) ),
           ColumnInfo.COLUMN_TYPE_TEXT, false ),
         new ColumnInfo(
-          BaseMessages.getString( PKG, inputMeta.getDescription( "FIELD_CURRENCY" ) ),
+          BaseMessages.getString( PKG, meta.getDescription( "FIELD_CURRENCY" ) ),
           ColumnInfo.COLUMN_TYPE_TEXT, false ),
         new ColumnInfo(
-          BaseMessages.getString( PKG, inputMeta.getDescription( "FIELD_DECIMAL" ) ),
+          BaseMessages.getString( PKG, meta.getDescription( "FIELD_DECIMAL" ) ),
           ColumnInfo.COLUMN_TYPE_TEXT, false ),
         new ColumnInfo(
-          BaseMessages.getString( PKG, inputMeta.getDescription( "FIELD_GROUP" ) ),
+          BaseMessages.getString( PKG, meta.getDescription( "FIELD_GROUP" ) ),
           ColumnInfo.COLUMN_TYPE_TEXT, false ),
         new ColumnInfo(
-          BaseMessages.getString( PKG, inputMeta.getDescription( "FIELD_TRIM_TYPE" ) ),
+          BaseMessages.getString( PKG, meta.getDescription( "FIELD_TRIM_TYPE" ) ),
           ColumnInfo.COLUMN_TYPE_CCOMBO, ValueMetaString.trimTypeDesc ), };
 
     colinf[2].setComboValuesSelectionListener( new ComboValuesSelectionListener() {
@@ -584,50 +580,15 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
 
     } );
 
-    wFields = new TableView( transMeta, shell, SWT.FULL_SELECTION | SWT.MULTI, colinf, 1, lsMod, props );
+    m_fieldsView = new TableView( transMeta, shell, SWT.FULL_SELECTION | SWT.MULTI, colinf, 1, lsMod, props );
 
     FormData fdFields = new FormData();
     fdFields.top = new FormAttachment( lastControl, margin * 2 );
     fdFields.bottom = new FormAttachment( wOK, -margin * 2 );
     fdFields.left = new FormAttachment( 0, 0 );
     fdFields.right = new FormAttachment( 100, 0 );
-    wFields.setLayoutData( fdFields );
-    wFields.setContentListener( lsContent );
+    m_fieldsView.setLayoutData( fdFields );
 
-    // Add listeners
-    lsCancel = new Listener() {
-      public void handleEvent( Event e ) {
-        cancel();
-      }
-    };
-    lsOK = new Listener() {
-      public void handleEvent( Event e ) {
-        ok();
-      }
-    };
-    lsPreview = new Listener() {
-      public void handleEvent( Event e ) {
-        preview();
-      }
-    };
-    lsGet = new Listener() {
-      public void handleEvent( Event e ) {
-        getCSV();
-      }
-    };
-
-    wCancel.addListener( SWT.Selection, lsCancel );
-    wOK.addListener( SWT.Selection, lsOK );
-    wPreview.addListener( SWT.Selection, lsPreview );
-    wGet.addListener( SWT.Selection, lsGet );
-
-    lsDef = new SelectionAdapter() {
-      public void widgetDefaultSelected( SelectionEvent e ) {
-        ok();
-      }
-    };
-
-    wStepname.addSelectionListener( lsDef );
     if ( wFilename != null ) {
       wFilename.addSelectionListener( lsDef );
     }
@@ -675,32 +636,10 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
       } );
     }
 
-    // Detect X or ALT-F4 or something that kills this window...
-    shell.addShellListener( new ShellAdapter() {
-      public void shellClosed( ShellEvent e ) {
-        cancel();
-      }
-    } );
-
     // Set the shell size, based upon previous time...
     setSize();
 
-    getData();
-
-    inputMeta.setChanged( changed );
     initializing = false;
-
-    // Update the preview window.
-    //
-    // asyncUpdatePreview();
-
-    shell.open();
-    while ( !shell.isDisposed() ) {
-      if ( !display.readAndDispatch() ) {
-        display.sleep();
-      }
-    }
-    return stepname;
   }
 
   protected void setFlags() {
@@ -735,14 +674,24 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
     }
   }
 
+  @Override
+  public void getData( final CsvInputMeta meta ) {
+    getData();
+  }
+
   public void getData() {
-    getData( inputMeta, true );
+    getData( meta, true );
   }
 
   /**
    * Copy information from the meta-data input to the dialog fields.
    */
   public void getData( CsvInputMeta inputMeta, boolean copyStepname ) {
+    getData( inputMeta, copyStepname, null, true );
+  }
+
+  public void getData( final CsvInputMeta inputMeta, final boolean copyStepname, final List<String> newFieldNames,
+                       final boolean reloadAll ) {
     if ( copyStepname ) {
       wStepname.setText( stepname );
     }
@@ -763,24 +712,33 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
     wAddResult.setSelection( inputMeta.isAddResultFile() );
     wEncoding.setText( Const.NVL( inputMeta.getEncoding(), "" ) );
 
-    for ( int i = 0; i < inputMeta.getInputFields().length; i++ ) {
-      TextFileInputField field = inputMeta.getInputFields()[i];
+    final List<String> lowerCaseNewFieldNames = newFieldNames == null ? new ArrayList()
+    : newFieldNames.stream().map( String::toLowerCase ).collect( Collectors.toList() );
 
-      TableItem item = new TableItem( wFields.table, SWT.NONE );
-      int colnr = 1;
-      item.setText( colnr++, Const.NVL( field.getName(), "" ) );
-      item.setText( colnr++, ValueMetaFactory.getValueMetaName( field.getType() ) );
-      item.setText( colnr++, Const.NVL( field.getFormat(), "" ) );
-      item.setText( colnr++, field.getLength() >= 0 ? Integer.toString( field.getLength() ) : "" );
-      item.setText( colnr++, field.getPrecision() >= 0 ? Integer.toString( field.getPrecision() ) : "" );
-      item.setText( colnr++, Const.NVL( field.getCurrencySymbol(), "" ) );
-      item.setText( colnr++, Const.NVL( field.getDecimalSymbol(), "" ) );
-      item.setText( colnr++, Const.NVL( field.getGroupSymbol(), "" ) );
-      item.setText( colnr++, Const.NVL( field.getTrimTypeDesc(), "" ) );
+    for ( int i = 0; i < inputMeta.getInputFields().length; i++ ) {
+      TextFileInputField field = inputMeta.getInputFields()[ i ];
+      // try to find a table item correcponsing to the current field name
+      TableItem item = findTableItem( field.getName() );
+      if ( item == null ) {
+        item = new TableItem( m_fieldsView.table, SWT.NONE );
+      }
+      if ( reloadAll || lowerCaseNewFieldNames.contains( field.getName().toLowerCase() ) ) {
+        int colnr = 1;
+        item.setText( colnr++, Const.NVL( field.getName(), "" ) );
+        item.setText( colnr++, ValueMetaFactory.getValueMetaName( field.getType() ) );
+        item.setText( colnr++, Const.NVL( field.getFormat(), "" ) );
+        item.setText( colnr++, field.getLength() >= 0 ? Integer.toString( field.getLength() ) : "" );
+        item.setText( colnr++, field.getPrecision() >= 0 ? Integer.toString( field.getPrecision() ) : "" );
+        item.setText( colnr++, Const.NVL( field.getCurrencySymbol(), "" ) );
+        item.setText( colnr++, Const.NVL( field.getDecimalSymbol(), "" ) );
+        item.setText( colnr++, Const.NVL( field.getGroupSymbol(), "" ) );
+        item.setText( colnr++, Const.NVL( field.getTrimTypeDesc(), "" ) );
+      }
     }
-    wFields.removeEmptyRows();
-    wFields.setRowNums();
-    wFields.optWidth( true );
+
+    m_fieldsView.removeEmptyRows();
+    m_fieldsView.setRowNums();
+    m_fieldsView.optWidth( true );
 
     setFlags();
 
@@ -788,13 +746,8 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
     wStepname.setFocus();
   }
 
-  private void cancel() {
-    stepname = null;
-    inputMeta.setChanged( changed );
-    dispose();
-  }
-
-  private void getInfo( CsvInputMeta inputMeta ) {
+  @Override
+  protected final void populateMeta( final CsvInputMeta inputMeta ) {
 
     if ( isReceivingInput ) {
       inputMeta.setFilenameField( wFilenameField.getText() );
@@ -814,11 +767,11 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
     inputMeta.setNewlinePossibleInFields( wNewlinePossible.getSelection() );
     inputMeta.setEncoding( wEncoding.getText() );
 
-    int nrNonEmptyFields = wFields.nrNonEmpty();
+    int nrNonEmptyFields = m_fieldsView.nrNonEmpty();
     inputMeta.allocate( nrNonEmptyFields );
 
     for ( int i = 0; i < nrNonEmptyFields; i++ ) {
-      TableItem item = wFields.getNonEmpty( i );
+      TableItem item = m_fieldsView.getNonEmpty( i );
       //CHECKSTYLE:Indentation:OFF
       inputMeta.getInputFields()[i] = new TextFileInputField();
 
@@ -833,33 +786,131 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
       inputMeta.getInputFields()[i].setGroupSymbol( item.getText( colnr++ ) );
       inputMeta.getInputFields()[i].setTrimType( ValueMetaString.getTrimTypeByDesc( item.getText( colnr++ ) ) );
     }
-    wFields.removeEmptyRows();
-    wFields.setRowNums();
-    wFields.optWidth( true );
+    m_fieldsView.removeEmptyRows();
+    m_fieldsView.setRowNums();
+    m_fieldsView.optWidth( true );
 
     inputMeta.setChanged();
   }
 
-  private void ok() {
-    if ( Utils.isEmpty( wStepname.getText() ) ) {
-      return;
+  private String[] getFieldNames( final InputStreamReader reader ) throws KettleException {
+
+    String delimiter = transMeta.environmentSubstitute( meta.getDelimiter() );
+    String enclosure = transMeta.environmentSubstitute( meta.getEnclosure() );
+
+    EncodingType encodingType = EncodingType.guessEncodingType( reader.getEncoding() );
+
+    // Read a line of data to determine the number of rows...
+    //
+    String line =
+      TextFileInput.getLine(
+        log, reader, encodingType, TextFileInputMeta.FILE_FORMAT_UNIX, new StringBuilder( 1000 ) );
+    String[] fieldNames = CsvInput.guessStringsFromLine( log, line, delimiter, enclosure, meta.getEscapeCharacter() );
+
+    if ( !meta.isHeaderPresent() ) {
+      // Don't use field names from the header...
+      // Generate field names F1 ... F10
+      //
+      DecimalFormat df = new DecimalFormat( "000" );
+      for ( int i = 0; i < fieldNames.length; i++ ) {
+        fieldNames[i] = "Field_" + df.format( i );
+      }
+    } else {
+      if ( !Utils.isEmpty( meta.getEnclosure() ) ) {
+        for ( int i = 0; i < fieldNames.length; i++ ) {
+          if ( fieldNames[i].startsWith( meta.getEnclosure() )
+            && fieldNames[i].endsWith( meta.getEnclosure() ) && fieldNames[i].length() > 1 ) {
+            fieldNames[i] = fieldNames[i].substring( 1, fieldNames[i].length() - 1 );
+          }
+        }
+      }
     }
 
-    getInfo( inputMeta );
-    stepname = wStepname.getText();
-    dispose();
+    // Trim the names to make sure...
+    //
+    for ( int i = 0; i < fieldNames.length; i++ ) {
+      fieldNames[i] = Const.trim( fieldNames[i] );
+    }
+
+    return fieldNames;
   }
 
-  // Get the data layout
-  private void getCSV() {
-    InputStream inputStream = null;
-    try {
-      CsvInputMeta meta = new CsvInputMeta();
-      getInfo( meta );
+  /*
+  @Override
+  protected void handleGetFieldsImpl( final String[] fieldNames, final int samples, boolean reloadAll ) {
 
+    InputStream inputStream = getInputStream();
+    try {
+      TextFileCSVImportProgressDialog pd =
+        new TextFileCSVImportProgressDialog( shell, meta, transMeta, getReader( inputStream ), samples, true );
+      String message = pd.open();
+      if ( message != null ) {
+        // OK, what's the result of our search?
+        final List<String> newFieldNames = getNewFields( fieldNames );
+        getData( meta, false, newFieldNames, reloadAll );
+        m_fieldsView.removeEmptyRows();
+        m_fieldsView.setRowNums();
+        m_fieldsView.optWidth( true );
+        populateMeta( meta );
+
+        EnterTextDialog etd =
+          new EnterTextDialog(
+            shell, BaseMessages.getString( PKG, "CsvInputDialog.ScanResults.DialogTitle" ), BaseMessages
+            .getString( PKG, "CsvInputDialog.ScanResults.DialogMessage" ), message, true );
+        etd.setReadOnly();
+        etd.open();
+      }
+    } finally {
+      try {
+        inputStream.close();
+      } catch ( Exception e ) {
+        // Ignore close errors
+      }
+    }
+  }
+  */
+
+
+  @Override
+  protected String handleGetFieldsImpl( final String[] fieldNames, final int samples, boolean reloadAll ) {
+
+    InputStream inputStream = getInputStream();
+    String message = null;
+    try {
+      TextFileCSVImportProgressDialog pd =
+        new TextFileCSVImportProgressDialog( shell, meta, transMeta, getReader( inputStream ), samples, true );
+      message = pd.open();
+       /*String message = pd.open();
+      if ( message != null ) {
+        // OK, what's the result of our search?
+       final List<String> newFieldNames = getNewFields( fieldNames );
+        getData( meta, false, newFieldNames, reloadAll );
+        m_fieldsView.removeEmptyRows();
+        m_fieldsView.setRowNums();
+        m_fieldsView.optWidth( true );
+        populateMeta( meta );
+
+        EnterTextDialog etd =
+          new EnterTextDialog(
+            shell, BaseMessages.getString( PKG, "CsvInputDialog.ScanResults.DialogTitle" ), BaseMessages
+            .getString( PKG, "CsvInputDialog.ScanResults.DialogMessage" ), message, true );
+        etd.setReadOnly();
+        etd.open();
+      }*/
+    } finally {
+      try {
+        inputStream.close();
+      } catch ( Exception e ) {
+        // Ignore close errors
+      }
+    }
+    return message;
+  }
+
+  private InputStreamReader getReader( final InputStream inputStream ) {
+    InputStreamReader reader = null;
+    try {
       String filename = transMeta.environmentSubstitute( meta.getFilename() );
-      String delimiter = transMeta.environmentSubstitute( meta.getDelimiter() );
-      String enclosure = transMeta.environmentSubstitute( meta.getEnclosure() );
 
       FileObject fileObject = KettleVFS.getFileObject( filename );
       if ( !( fileObject instanceof LocalFile ) ) {
@@ -869,102 +920,53 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
         throw new KettleException( BaseMessages.getString( PKG, "CsvInput.Log.OnlyLocalFilesAreSupported" ) );
       }
 
-      wFields.table.removeAll();
-
-      inputStream = KettleVFS.getInputStream( fileObject );
-
       String realEncoding = transMeta.environmentSubstitute( meta.getEncoding() );
-      InputStreamReader reader;
       if ( Utils.isEmpty( realEncoding ) ) {
         reader = new InputStreamReader( inputStream );
       } else {
         reader = new InputStreamReader( inputStream, realEncoding );
       }
-
-      EncodingType encodingType = EncodingType.guessEncodingType( reader.getEncoding() );
-
-      // Read a line of data to determine the number of rows...
-      //
-      String line =
-        TextFileInput.getLine(
-          log, reader, encodingType, TextFileInputMeta.FILE_FORMAT_UNIX, new StringBuilder( 1000 ) );
-
-      // Split the string, header or data into parts...
-      //
-      String[] fieldNames =
-        CsvInput.guessStringsFromLine( log, line, delimiter, enclosure, meta.getEscapeCharacter() );
-
-      if ( !meta.isHeaderPresent() ) {
-        // Don't use field names from the header...
-        // Generate field names F1 ... F10
-        //
-        DecimalFormat df = new DecimalFormat( "000" );
-        for ( int i = 0; i < fieldNames.length; i++ ) {
-          fieldNames[i] = "Field_" + df.format( i );
-        }
-      } else {
-        if ( !Utils.isEmpty( meta.getEnclosure() ) ) {
-          for ( int i = 0; i < fieldNames.length; i++ ) {
-            if ( fieldNames[i].startsWith( meta.getEnclosure() )
-              && fieldNames[i].endsWith( meta.getEnclosure() ) && fieldNames[i].length() > 1 ) {
-              fieldNames[i] = fieldNames[i].substring( 1, fieldNames[i].length() - 1 );
-            }
-          }
-        }
-      }
-
-      // Trim the names to make sure...
-      //
-      for ( int i = 0; i < fieldNames.length; i++ ) {
-        fieldNames[i] = Const.trim( fieldNames[i] );
-      }
-
-      // Update the GUI
-      //
-      for ( int i = 0; i < fieldNames.length; i++ ) {
-        TableItem item = new TableItem( wFields.table, SWT.NONE );
-        item.setText( 1, fieldNames[i] );
-        item.setText( 2, ValueMetaFactory.getValueMetaName( ValueMetaInterface.TYPE_STRING ) );
-      }
-      wFields.removeEmptyRows();
-      wFields.setRowNums();
-      wFields.optWidth( true );
-
-      // Now we can continue reading the rows of data and we can guess the
-      // Sample a few lines to determine the correct type of the fields...
-      //
-      String shellText = BaseMessages.getString( PKG, "CsvInputDialog.LinesToSample.DialogTitle" );
-      String lineText = BaseMessages.getString( PKG, "CsvInputDialog.LinesToSample.DialogMessage" );
-      EnterNumberDialog end = new EnterNumberDialog( shell, 100, shellText, lineText );
-      int samples = end.open();
-      if ( samples >= 0 ) {
-        getInfo( meta );
-
-        TextFileCSVImportProgressDialog pd =
-          new TextFileCSVImportProgressDialog( shell, meta, transMeta, reader, samples, true );
-        String message = pd.open();
-        if ( message != null ) {
-          wFields.removeAll();
-
-          // OK, what's the result of our search?
-          getData( meta, false );
-          wFields.removeEmptyRows();
-          wFields.setRowNums();
-          wFields.optWidth( true );
-
-          EnterTextDialog etd =
-            new EnterTextDialog(
-              shell, BaseMessages.getString( PKG, "CsvInputDialog.ScanResults.DialogTitle" ), BaseMessages
-                .getString( PKG, "CsvInputDialog.ScanResults.DialogMessage" ), message, true );
-          etd.setReadOnly();
-          etd.open();
-
-          // asyncUpdatePreview();
-        }
-      }
     } catch ( IOException e ) {
       new ErrorDialog( shell, BaseMessages.getString( PKG, "CsvInputDialog.IOError.DialogTitle" ), BaseMessages
         .getString( PKG, "CsvInputDialog.IOError.DialogMessage" ), e );
+    } catch ( KettleException e ) {
+      new ErrorDialog( shell, BaseMessages.getString( PKG, "System.Dialog.Error.Title" ), BaseMessages.getString(
+        PKG, "CsvInputDialog.ErrorGettingFileDesc.DialogMessage" ), e );
+    }
+    return reader;
+  }
+
+  private InputStream getInputStream() {
+    InputStream inputStream = null;
+    try {
+      String filename = transMeta.environmentSubstitute( meta.getFilename() );
+
+      FileObject fileObject = KettleVFS.getFileObject( filename );
+      if ( !( fileObject instanceof LocalFile ) ) {
+        // We can only use NIO on local files at the moment, so that's what we
+        // limit ourselves to.
+        //
+        throw new KettleException( BaseMessages.getString( PKG, "CsvInput.Log.OnlyLocalFilesAreSupported" ) );
+      }
+
+      inputStream = KettleVFS.getInputStream( fileObject );
+    } catch ( IOException e ) {
+      new ErrorDialog( shell, BaseMessages.getString( PKG, "CsvInputDialog.IOError.DialogTitle" ), BaseMessages
+        .getString( PKG, "CsvInputDialog.IOError.DialogMessage" ), e );
+    } catch ( KettleException e ) {
+      new ErrorDialog( shell, BaseMessages.getString( PKG, "System.Dialog.Error.Title" ), BaseMessages.getString(
+        PKG, "CsvInputDialog.ErrorGettingFileDesc.DialogMessage" ), e );
+    }
+    return inputStream;
+  }
+
+  @Override
+  protected void getFields( CsvInputMeta meta, TransMeta transMeta ) {
+    InputStream inputStream = getInputStream();
+    try {
+      populateMeta( meta );
+      final String[] fieldNames = getFieldNames( getReader( inputStream ) );
+      handleGetFields( fieldNames );
     } catch ( KettleException e ) {
       new ErrorDialog( shell, BaseMessages.getString( PKG, "System.Dialog.Error.Title" ), BaseMessages.getString(
         PKG, "CsvInputDialog.ErrorGettingFileDesc.DialogMessage" ), e );
@@ -981,7 +983,7 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
   private synchronized void preview() {
     // Create the XML input step
     CsvInputMeta oneMeta = new CsvInputMeta();
-    getInfo( oneMeta );
+    populateMeta( oneMeta );
 
     TransMeta previewMeta =
       TransPreviewFactory.generatePreviewTransformation( transMeta, oneMeta, wStepname.getText() );
@@ -1035,7 +1037,7 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
       previewBusy.set( true );
 
       CsvInputMeta meta = new CsvInputMeta();
-      getInfo( meta );
+      populateMeta( meta );
 
       // Validate some basic data...
       //
@@ -1120,4 +1122,29 @@ public class CsvInputDialog extends BaseStepDialog implements StepDialogInterfac
     shell.getDisplay().asyncExec( update );
   }
 
+
+
+  @Override
+  protected CsvInputMeta getPopulatedMeta() {
+    final CsvInputMeta newMeta = new CsvInputMeta();
+    populateMeta( newMeta );
+    return newMeta;
+  }
+
+  @Override
+  protected String getTitle() {
+    return BaseMessages.getString( PKG, "CsvInputDialog.Shell.Title" ); //$NON-NLS-1$
+  }
+
+
+  @Override
+  protected void buildPreFooter() {
+
+    buildPreviewButton();
+  }
+
+  @Override
+  protected void buildPostFooter() {
+    buildGetFieldsButton( shell );
+  }
 }

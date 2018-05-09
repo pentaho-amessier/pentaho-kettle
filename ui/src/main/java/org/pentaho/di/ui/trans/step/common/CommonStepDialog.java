@@ -21,6 +21,8 @@
  */
 package org.pentaho.di.ui.trans.step.common;
 
+import com.google.common.annotations.VisibleForTesting;
+import javassist.compiler.ast.StringL;
 import org.apache.commons.lang.StringUtils;
 import org.eclipse.jface.dialogs.Dialog;
 import org.eclipse.jface.dialogs.MessageDialog;
@@ -42,29 +44,42 @@ import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.swt.widgets.Text;
 import org.pentaho.di.core.Const;
 import org.pentaho.di.core.Props;
+import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.plugins.PluginInterface;
 import org.pentaho.di.core.plugins.PluginRegistry;
 import org.pentaho.di.core.plugins.StepPluginType;
+import org.pentaho.di.core.row.ValueMetaInterface;
+import org.pentaho.di.core.row.value.ValueMetaFactory;
 import org.pentaho.di.i18n.BaseMessages;
 import org.pentaho.di.trans.Trans;
 import org.pentaho.di.trans.TransMeta;
 import org.pentaho.di.trans.TransPreviewFactory;
+import org.pentaho.di.trans.step.common.CommonStepMeta;
 import org.pentaho.di.trans.step.StepDialogInterface;
 import org.pentaho.di.trans.step.StepInterface;
 import org.pentaho.di.trans.step.StepMetaInterface;
+import org.pentaho.di.trans.steps.csvinput.CsvInputMeta;
 import org.pentaho.di.ui.core.ConstUI;
 import org.pentaho.di.ui.core.FormDataBuilder;
 import org.pentaho.di.ui.core.dialog.EnterNumberDialog;
+import org.pentaho.di.ui.core.dialog.EnterTextDialog;
 import org.pentaho.di.ui.core.dialog.PreviewRowsDialog;
 import org.pentaho.di.ui.core.dialog.SimpleMessageDialog;
 import org.pentaho.di.ui.core.gui.GUIResource;
+import org.pentaho.di.ui.core.widget.TableView;
 import org.pentaho.di.ui.trans.dialog.TransPreviewProgressDialog;
 import org.pentaho.di.ui.trans.step.BaseStepDialog;
+import org.pentaho.di.ui.trans.steps.textfileinput.TextFileCSVImportProgressDialog;
 
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * A common implementation of the {@link BaseStepDialog} that creates many of the common UI components.
@@ -83,8 +98,10 @@ public abstract class CommonStepDialog<StepMetaType extends CommonStepMeta> exte
   protected static final int SHELL_WIDTH_OFFSET = 16;
   protected static final int VAR_ICON_WIDTH = GUIResource.getInstance().getImageVariable().getBounds().width;
   protected static final int VAR_ICON_HEIGHT = GUIResource.getInstance().getImageVariable().getBounds().height;
-  private static final int SHELL_WIDTH = 610;
+  protected static final int SHELL_WIDTH = 610;
   private static Class<?> PKG = StepInterface.class;
+  // applicable only to steps that have the concept of incoming fields
+  protected TableView m_fieldsView;
 
   protected final StepMetaType meta;
 
@@ -92,6 +109,7 @@ public abstract class CommonStepDialog<StepMetaType extends CommonStepMeta> exte
   protected Label headerSpacer;
 
   protected ModifyListener lsMod;
+  protected SelectionAdapter lsGetFields;
 
   protected CTabFolder m_wTabFolder;
 
@@ -139,7 +157,21 @@ public abstract class CommonStepDialog<StepMetaType extends CommonStepMeta> exte
       }
     };
 
+    lsGetFields = new SelectionAdapter() {
+      @Override
+      public void widgetSelected( SelectionEvent e ) {
+        // populate table from schema
+        getFields( (StepMetaType) meta.clone(), transMeta );
+        // the 'Preview' button should only be enabled if the fields are populated
+        updatePreviewButtonStatus();
+      }
+    };
+
     initListenersImpl();
+  }
+
+  protected void getFields( StepMetaType meta, TransMeta transMeta ) {
+    // override
   }
 
   /**
@@ -191,14 +223,24 @@ public abstract class CommonStepDialog<StepMetaType extends CommonStepMeta> exte
     return stepname;
   }
 
-  private void open( final Display display ) {
-    shell.pack();
+  protected void setMinimumSize() {
     final int height = shell.computeSize( SHELL_WIDTH, SWT.DEFAULT ).y;
     // for some reason the actual width and minimum width are smaller than what is requested - add the
     // SHELL_WIDTH_OFFSET to get the desired size
     shell.setMinimumSize( SHELL_WIDTH + SHELL_WIDTH_OFFSET, height );
-    shell.setSize( SHELL_WIDTH + SHELL_WIDTH_OFFSET, height );
+  }
 
+  protected void setPreferredSize() {
+    final int height = shell.computeSize( SHELL_WIDTH, SWT.DEFAULT ).y;
+    // for some reason the actual width and minimum width are smaller than what is requested - add the
+    // SHELL_WIDTH_OFFSET to get the desired size
+    shell.setSize( SHELL_WIDTH + SHELL_WIDTH_OFFSET, height );
+  }
+
+  private void open( final Display display ) {
+    shell.pack();
+    setMinimumSize();
+    setPreferredSize();
     getData( meta );
     meta.setChanged( changed );
 
@@ -210,7 +252,7 @@ public abstract class CommonStepDialog<StepMetaType extends CommonStepMeta> exte
     }
   }
 
-  private void buildHeader() {
+  protected void buildHeader() {
 
     buildPreHeader();
 
@@ -261,7 +303,7 @@ public abstract class CommonStepDialog<StepMetaType extends CommonStepMeta> exte
 
   protected abstract void buildBody();
 
-  private void buildFooter() {
+  protected void buildFooter() {
 
     buildPreFooter();
 
@@ -300,15 +342,31 @@ public abstract class CommonStepDialog<StepMetaType extends CommonStepMeta> exte
     return wPreview;
   }
 
-  protected Button buildGetFieldsButton( final Composite parent, final SelectionAdapter listener ) {
+  protected Button buildGetFieldsButton( final Composite parent ) {
+    return buildGetFieldsButtonImpl( parent, lsGetFields );
+  }
+
+  private Button buildGetFieldsButtonImpl( final Composite parent, final SelectionAdapter listener ) {
     // get fields button
     wGet = new Button( parent, SWT.PUSH );
     updateGetFieldsButtonStatus();
     wGet.setText( BaseMessages.getString( PKG, "CommonStepDialog.Button.GetFields" ) ); //$NON-NLS-1$
     props.setLook( wGet );
     wGet.setLayoutData( new FormDataBuilder().right( 100, 0 ).bottom( 100, 0 ).result() );
-    wGet.addSelectionListener( listener );
+    if ( listener == null ) {
+      log.logDebug( String.format( "The listener for the '%s' button has not been speficied", wGet.getText() ) );
+    } else {
+      wGet.addSelectionListener( listener );
+    }
     return wGet;
+  }
+
+  /**
+   * @deprecated Use {@link #buildGetFieldsButton(Composite)} instead and initialize {@link #lsGetFields}.
+   */
+  @Deprecated
+  protected Button buildGetFieldsButton( final Composite parent, final SelectionAdapter listener ) {
+    return buildGetFieldsButtonImpl( parent, listener );
   }
 
   protected Button buildCancelButton() {
@@ -354,8 +412,8 @@ public abstract class CommonStepDialog<StepMetaType extends CommonStepMeta> exte
       transMeta, populatedMeta, wStepname.getText() );
 
     final EnterNumberDialog numberDialog = new EnterNumberDialog( shell,
-      props.getDefaultPreviewSize(), BaseMessages.getString( PKG,
-      "CommonStepDialog.PreviewSize.DialogTitle" ), //$NON-NLS-1$
+      props.getDefaultPreviewSize(),
+      BaseMessages.getString( PKG, "CommonStepDialog.PreviewSize.DialogTitle" ), //$NON-NLS-1$
       BaseMessages.getString( PKG, "CommonStepDialog.PreviewSize.DialogMessage" ) ); //$NON-NLS-1$
     final int previewSize = numberDialog.open();
     if ( previewSize > 0 ) {
@@ -391,6 +449,7 @@ public abstract class CommonStepDialog<StepMetaType extends CommonStepMeta> exte
   }
 
   /**
+   * To be overridden by a preview-capable step dialog.
    * To be overridden by a preview-capable step dialog.
    */
   protected void updatePreviewButtonStatus() {
@@ -452,6 +511,12 @@ public abstract class CommonStepDialog<StepMetaType extends CommonStepMeta> exte
    */
   public abstract void getData( final StepMetaType meta );
 
+
+  public void getData( final StepMetaType inputMeta, final boolean copyStepname, final List<String>
+    newFieldNames, final boolean reloadAll ) {
+    // override
+  }
+
   protected CTabFolder buildTabFolder() {
     m_wTabFolder = new CTabFolder( shell, SWT.BORDER );
     props.setLook( m_wTabFolder, Props.WIDGET_STYLE_TAB );
@@ -492,5 +557,107 @@ public abstract class CommonStepDialog<StepMetaType extends CommonStepMeta> exte
     openDialog( BaseMessages.getString( PKG, "CommonStepDialog.ErrorMessage.GetFieldsError.Title" ), //$NON-NLS-1$
       BaseMessages.getString( PKG, "CommonStepDialog.ErrorMessage.GetFieldsError.Message" ), //$NON-NLS-1$
       MessageDialog.ERROR );
+  }
+
+  protected String handleGetFieldsImpl( final String[] fieldNames, final int samples, boolean reloadAll ) {
+    // override
+    return null;
+  }
+
+  protected void handleGetFields( final String[] fieldNames )  throws KettleException {
+    // if fieldNames is empty, there are no incoming fields
+    if ( fieldNames == null || fieldNames.length == 0 ) {
+      // No new fields were found: We were unable to find any new incoming fields.
+      // TODO: dialog
+    } else {
+      // there are incoming fields
+      int nrNonEmptyFields = m_fieldsView.nrNonEmpty();
+      // is the table empty? If so, we proceed to load the fields
+      if ( nrNonEmptyFields == 0 ) {
+        loadFields( fieldNames, true );
+      } else {
+        // some fields are already populated
+        final FieldSelectionDialog fieldSelectionDialog = new FieldSelectionDialog( this, fieldNames );
+        fieldSelectionDialog.open();
+      }
+    }
+  }
+
+  // TODO: unit test
+  /**
+   * Trims the fieldNames array to a list of only new fields, ones that aren't already in the fields table.
+   */
+  protected List<String> getNewFields( final String[] fieldNames ) {
+    final List<String> lowerCaseFieldNames = Arrays.asList( fieldNames ).stream().map( String::toLowerCase ).collect(
+      Collectors.toList() );
+    final List<String> newFieldNames = new ArrayList();
+    if ( m_fieldsView != null && m_fieldsView.table != null ) {
+      for ( int i = 0; i < m_fieldsView.table.getItemCount(); i++ ) {
+        final TableItem item = m_fieldsView.table.getItem( i );
+        if ( !lowerCaseFieldNames.contains( item.getText().toLowerCase() ) ) {
+          newFieldNames.add( item.getText() );
+        }
+      }
+    }
+    return newFieldNames;
+  }
+
+  public void loadFields( final String[] fieldNames, boolean reloadAll ) throws KettleException {
+    // no fields have been created yet - no need for the field selection dialog
+    // Now we can continue reading the rows of data and we can guess the
+    // Sample a few lines to determine the correct type of the fields...
+    //
+    final GetFieldsSampleSizeDialog getFieldsSampleSizeDialog = new GetFieldsSampleSizeDialog( this, fieldNames, reloadAll );
+    getFieldsSampleSizeDialog.open( meta, transMeta );
+    /*int samples = getFieldsSampleSizeDialog.open();
+
+    if ( samples >= 0 ) {
+      // Split the string, header or data into parts...
+
+      if ( reloadAll ) {
+        m_fieldsView.table.removeAll();
+      } else {
+        // TODO: remove
+        int dummy = 0;
+      }
+      // Update the GUI
+      //
+      for ( int i = 0; i < fieldNames.length; i++ ) {
+        // if reloadAll is true, and the field already exists, update it, otherwise create a new field
+        TableItem item = findTableItem( fieldNames[ i ] );
+        if ( item == null ) {
+          item = new TableItem( m_fieldsView.table, SWT.NONE );
+          item.setText( 1, fieldNames[ i ] );
+          item.setText( 2, ValueMetaFactory.getValueMetaName( ValueMetaInterface.TYPE_STRING ) );
+        }
+      }
+      m_fieldsView.removeEmptyRows();
+      m_fieldsView.setRowNums();
+      m_fieldsView.optWidth( true );
+
+      handleGetFieldsImpl( fieldNames, samples, reloadAll );
+
+      populateMeta( meta );
+    }*/
+  }
+/*
+for ( int i = 0; i < inputMeta.getInputFields().length; i++ ) {
+      TextFileInputField field = inputMeta.getInputFields()[i];
+
+      TableItem item = new TableItem( m_fieldsView.table, SWT.NONE );
+      int colnr = 1;
+      item.setText( colnr++, Const.NVL( field.getName(), "" ) );
+      item.setText( colnr++, ValueMetaFactory.getValueMetaName( field.getType() ) );
+ */
+// TODO: unit test
+  protected TableItem findTableItem( final String fieldName ) {
+    for ( int i = 0 ; i < m_fieldsView.table.getItemCount(); i++ ){
+      final TableItem item = m_fieldsView.table.getItem( i );
+      final String itemFieldName = item.getText( i );
+      if ( itemFieldName != null && itemFieldName.equalsIgnoreCase( fieldName ) ) {
+        return item;
+      }
+    }
+    return null;
   }
 }

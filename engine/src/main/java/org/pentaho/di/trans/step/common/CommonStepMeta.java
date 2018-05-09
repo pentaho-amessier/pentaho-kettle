@@ -19,7 +19,7 @@
  * confidentiality and non-disclosure agreements or other agreements with Hitachi Vantara,
  * explicitly covering such access.
  */
-package org.pentaho.di.ui.trans.step.common;
+package org.pentaho.di.trans.step.common;
 
 import org.pentaho.di.trans.step.BaseStepMeta;
 import org.pentaho.di.trans.step.StepMetaInterface;

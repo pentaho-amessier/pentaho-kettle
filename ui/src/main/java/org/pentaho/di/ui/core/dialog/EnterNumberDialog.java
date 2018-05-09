@@ -55,20 +55,22 @@ import org.pentaho.di.ui.trans.step.BaseStepDialog;
 public class EnterNumberDialog extends Dialog {
   private static Class<?> PKG = EnterNumberDialog.class; // for i18n purposes, needed by Translator2!!
 
-  private Label wlNumber;
+  private Label wlNumber, wlCheckbox;
   private Text wNumber;
-  private FormData fdlNumber, fdNumber;
+  private FormData fdlNumber, fdNumber, fdlCheckbox, fdCheckbox;
 
-  private Button wOK, wCancel;
+  private Button wOK, wCancel, wCheckbox;
   private Listener lsOK, lsCancel;
   private boolean hideCancelButton;
 
   private Shell shell;
   private SelectionAdapter lsDef;
 
+  private boolean includeCheckbox;
   private int samples;
   private String shellText;
   private String lineText;
+  private String checkboxLabel;
   private PropsUI props;
 
   /**
@@ -83,12 +85,22 @@ public class EnterNumberDialog extends Dialog {
     this.lineText = lineText;
   }
 
-  public EnterNumberDialog( Shell parent, int samples, String shellText, String lineText ) {
+  public EnterNumberDialog( Shell parent, int samples, String shellText, String lineText) {
+    this( parent, samples, shellText, lineText, false, null );
+  }
+
+  public EnterNumberDialog( Shell parent, int samples, String shellText, String lineText, final String checkboxLabel ) {
+    this( parent, samples, shellText, lineText, false, checkboxLabel );
+  }
+
+  public EnterNumberDialog( Shell parent, int samples, String shellText, String lineText, boolean includeCheckbox, final String checkboxLabel  ) {
     super( parent, SWT.NONE );
     this.props = PropsUI.getInstance();
     this.samples = samples;
     this.shellText = shellText;
     this.lineText = lineText;
+    this.includeCheckbox = includeCheckbox;
+    this.checkboxLabel = checkboxLabel;
   }
 
   public int open() {
@@ -126,6 +138,24 @@ public class EnterNumberDialog extends Dialog {
     fdNumber.right = new FormAttachment( 0, length );
     wNumber.setLayoutData( fdNumber );
 
+    if ( includeCheckbox ) {
+      wCheckbox = new Button( shell, SWT.CHECK );
+      fdCheckbox = new FormData();
+      fdCheckbox.left = new FormAttachment( 0, 0 );
+      fdCheckbox.top = new FormAttachment( wNumber, margin * 2 );
+      wCheckbox.setLayoutData( fdCheckbox );
+
+      wlCheckbox = new Label( shell, SWT.NONE );
+      if ( checkboxLabel != null ) {
+        wlCheckbox.setText( checkboxLabel );
+      }
+      props.setLook( wlCheckbox );
+      fdlCheckbox = new FormData();
+      fdlCheckbox.left = new FormAttachment( wCheckbox, margin * 2 );
+      fdlCheckbox.top = new FormAttachment( wNumber, margin );
+      wlCheckbox.setLayoutData( fdlCheckbox );
+    }
+
     // Some buttons
     Button[] buttons = null;
 
@@ -139,7 +169,7 @@ public class EnterNumberDialog extends Dialog {
       buttons = new Button[] { wOK };
     }
 
-    BaseStepDialog.positionBottomButtons( shell, buttons, margin, wNumber );
+    BaseStepDialog.positionBottomButtons( shell, buttons, margin, includeCheckbox ? wlCheckbox : wNumber );
 
     // Add listeners
     lsOK = new Listener() {
