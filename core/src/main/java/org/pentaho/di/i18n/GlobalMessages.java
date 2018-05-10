@@ -78,13 +78,12 @@ public class GlobalMessages extends AbstractMessageHandler {
   }
 
   /**
-   * Retrieve a resource bundle of the default or fail-over locale.
+   * Returns a resource bundle of the default or fail-over locale, or null, if the bundle cannot be found.
    *
    * @param packageName The package to search in
-   * @return The resource bundle
-   * @throws MissingResourceException in case both resource bundles couldn't be found.
+   * @return The resource bundle, or null, if the bundle cannot be found.
    */
-  public static ResourceBundle getBundle( String packageName ) throws MissingResourceException {
+  public static ResourceBundle getBundle( String packageName ) {
     return GlobalMessageUtil.getBundle( packageName, PKG );
   }
 
@@ -142,16 +141,15 @@ public class GlobalMessages extends AbstractMessageHandler {
 
   /**
    * Returns a {@link ResourceBundle} for the given {@link Locale} and {@code packagePath}, using the {@link
-   * GlobalMessages} class loader.
+   * GlobalMessages} class loader, or null, if the resource bundle cannot be found.
    *
    * @param locale      the {@link Locale} for which the {@link ResourceBundle} is being retrieved
    * @param packagePath the full path to the localized message file without the {@code .properties} extension
    * @return a {@link ResourceBundle} for the given {@link Locale} and {@code packagePath}, using the {@link
-   * GlobalMessages} class loader
-   * @throws MissingResourceException when the {@link ResourceBundle} cannot be found
+   * GlobalMessages} class loader, or null, if the resource bundle cannot be found
    */
   @VisibleForTesting
-  static ResourceBundle getBundle( final Locale locale, final String packagePath ) throws MissingResourceException {
+  static ResourceBundle getBundle( final Locale locale, final String packagePath ) {
     return GlobalMessageUtil.getBundle( locale, packagePath, PKG );
   }
 

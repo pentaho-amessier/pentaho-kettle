@@ -303,18 +303,10 @@ public class SpoonPerspectiveManager {
         try {
           ResourceBundle res = null;
           if ( overlay.getResourceBundleUri() != null ) {
-            try {
-              res = GlobalMessageUtil.getBundle( overlay.getResourceBundleUri(), SpoonPerspectiveManager.class );
-            } catch ( MissingResourceException ignored ) {
-              // Ignore errors
-            }
+            res = GlobalMessageUtil.getBundle( overlay.getResourceBundleUri(), SpoonPerspectiveManager.class );
           } else {
-            try {
-              res = GlobalMessageUtil.getBundle( overlay.getOverlayUri().replace( ".xul", ".properties" ),
-                SpoonPerspectiveManager.class );
-            } catch ( MissingResourceException ignored ) {
-              // Ignore errors
-            }
+            res = GlobalMessageUtil.getBundle( overlay.getOverlayUri().replace( ".xul", ".properties" ),
+              SpoonPerspectiveManager.class );
           }
           if ( res == null ) {
             res = new XulSpoonResourceBundle( sp.getClass() );

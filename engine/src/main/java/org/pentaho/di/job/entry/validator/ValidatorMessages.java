@@ -45,10 +45,11 @@ public class ValidatorMessages {
     ResourceBundle bundle = null;
     try {
       bundle = GlobalMessageUtil.getBundle( bundleName, ValidatorMessages.class );
-    } catch ( MissingResourceException e ) {
-      return "??? missing resource ???";
     } catch ( NullPointerException e ) {
       return "??? baseName null ???";
+    }
+    if ( bundle == null ) {
+      return "??? missing resource ???";
     }
     String unformattedString = null;
     try {

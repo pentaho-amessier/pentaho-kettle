@@ -171,12 +171,9 @@ public class XulDatabaseDialog {
       XulComponent boxElement = container.getDocumentRoot().getElementById( FRAGMENT_ID );
       XulComponent parentElement = boxElement.getParent();
 
-      ResourceBundle res = null;
-      try {
-        res = GlobalMessages.getBundle( MESSAGES );
-      } catch ( MissingResourceException e ) {
-        log.logError(
-          BaseMessages.getString( PKG, "XulDatabaseDialog.Error.ResourcesNotFound.Title" ), e.getMessage(), e );
+      ResourceBundle res = GlobalMessages.getBundle( MESSAGES );
+      if ( res == null ) {
+        log.logError( BaseMessages.getString( PKG, "XulDatabaseDialog.Error.ResourcesNotFound.Title" ) );
       }
 
       XulDomContainer fragmentContainer = null;
