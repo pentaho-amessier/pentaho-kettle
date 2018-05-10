@@ -35,14 +35,14 @@ public class Messages {
 
   private static final String BUNDLE_NAME = "org.pentaho.ui.database.databasedialog";
 
-  private static ResourceBundle RESOURCE_BUNDLE = GlobalMessageUtil.getBundle( BUNDLE_NAME, Messages.class );
+  private static ResourceBundle RESOURCE_BUNDLE = GlobalMessageUtil.getInstance().getBundle( BUNDLE_NAME, Messages.class );
 
   private Messages() {
   }
 
   public static ResourceBundle getBundle() {
     if ( RESOURCE_BUNDLE == null ) {
-      RESOURCE_BUNDLE = GlobalMessageUtil.getBundle( BUNDLE_NAME, Messages.class );
+      RESOURCE_BUNDLE = GlobalMessageUtil.getInstance().getBundle( BUNDLE_NAME, Messages.class );
     }
 
     return RESOURCE_BUNDLE;

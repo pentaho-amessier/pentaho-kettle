@@ -44,11 +44,12 @@ public class ValidatorMessages {
   public static String getStringFromBundle( final String bundleName, final String key, final Object... params ) {
     ResourceBundle bundle = null;
     try {
-      bundle = GlobalMessageUtil.getBundle( bundleName, ValidatorMessages.class );
-    } catch ( MissingResourceException e ) {
-      return "??? missing resource ???";
+      bundle = GlobalMessageUtil.getInstance().getBundle( bundleName, ValidatorMessages.class );
     } catch ( NullPointerException e ) {
       return "??? baseName null ???";
+    }
+    if ( bundle == null ) {
+      return "??? missing resource ???";
     }
     String unformattedString = null;
     try {

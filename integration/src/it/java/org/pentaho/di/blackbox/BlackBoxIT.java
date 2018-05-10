@@ -75,7 +75,7 @@ public class BlackBoxIT {
     Locale.setDefault( Locale.US );
 
     // set the locale to English so that log file comparisons work
-    GlobalMessageUtil.setLocale( EnvUtil.createLocale( "en-US" ) );
+    GlobalMessageUtil.getInstance().setLocale( EnvUtil.createLocale( "en-US" ) );
 
     // Keep all log rows for at least 60 minutes as per BaseCluster.java
     KettleLogStore.init( 0, 60 );

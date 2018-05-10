@@ -101,9 +101,9 @@ public class AbsController extends EESecurityController implements java.io.Seria
         service = (RepositorySecurityManager) repository.getService( IAbsSecurityManager.class );
         String localeValue = null;
         try {
-          localeValue = GlobalMessageUtil.getLocale().getDisplayName();
+          localeValue = GlobalMessageUtil.getInstance().getLocale().getDisplayName();
         } catch ( MissingResourceException e ) {
-          localeValue = GlobalMessageUtil.FAILOVER_LOCALE.toString();
+          localeValue = GlobalMessageUtil.getInstance().FAILOVER_LOCALE.toString();
         }
         ( (IAbsSecurityManager) service ).initialize( localeValue );
       } else {
@@ -318,7 +318,7 @@ public class AbsController extends EESecurityController implements java.io.Seria
   private void initializeLogicalRolesUI() {
     try {
       Map<String, String> logicalRoles =
-          ( (IAbsSecurityManager) service ).getAllLogicalRoles( GlobalMessageUtil.getLocale().getDisplayName() );
+          ( (IAbsSecurityManager) service ).getAllLogicalRoles( GlobalMessageUtil.getInstance().getLocale().getDisplayName() );
       for ( Entry<String, String> logicalRole : logicalRoles.entrySet() ) {
         XulCheckbox logicalRoleCheckbox;
         logicalRoleCheckbox = (XulCheckbox) document.createElement( "checkbox" );//$NON-NLS-1$
@@ -345,7 +345,7 @@ public class AbsController extends EESecurityController implements java.io.Seria
   private void initializeLogicalSystemRolesUI() {
     try {
       Map<String, String> logicalRoles =
-          ( (IAbsSecurityManager) service ).getAllLogicalRoles( GlobalMessageUtil.getLocale().getDisplayName() );
+          ( (IAbsSecurityManager) service ).getAllLogicalRoles( GlobalMessageUtil.getInstance().getLocale().getDisplayName() );
       for ( Entry<String, String> logicalRole : logicalRoles.entrySet() ) {
         XulCheckbox logicalSystemRoleCheckbox;
         logicalSystemRoleCheckbox = (XulCheckbox) document.createElement( "checkbox" );//$NON-NLS-1$

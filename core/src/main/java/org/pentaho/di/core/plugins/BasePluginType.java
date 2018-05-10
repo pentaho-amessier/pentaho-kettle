@@ -587,7 +587,7 @@ public abstract class BasePluginType implements PluginTypeInterface {
     if ( input.startsWith( "i18n" ) ) {
       return getCodedTranslation( input );
     } else {
-      for ( final Locale locale : GlobalMessageUtil.getActiveLocales() ) {
+      for ( final Locale locale : GlobalMessageUtil.getInstance().getActiveLocales() ) {
         String alt = localizedMap.get( locale.toString().toLowerCase() );
         if ( !Utils.isEmpty( alt ) ) {
           return alt;
