@@ -45,6 +45,7 @@ import org.pentaho.di.core.logging.LogChannelInterface;
 import org.pentaho.di.core.row.RowDataUtil;
 import org.pentaho.di.core.row.RowMeta;
 import org.pentaho.di.core.row.ValueMetaInterface;
+import org.pentaho.di.core.util.StringUtil;
 import org.pentaho.di.core.util.Utils;
 import org.pentaho.di.core.vfs.KettleVFS;
 import org.pentaho.di.i18n.BaseMessages;
@@ -455,7 +456,7 @@ public class CsvInput extends BaseStep implements StepInterface {
       String[] fieldNames =
           CsvInput.guessStringsFromLine( log, line, delimiter, enclosure, csvInputMeta.getEscapeCharacter() );
       if ( !Utils.isEmpty( csvInputMeta.getEnclosure() ) ) {
-        removeEnclosure( fieldNames, csvInputMeta.getEnclosure() );
+        StringUtil.removeEnclosure( fieldNames, csvInputMeta.getEnclosure() );
       }
       trimFieldNames( fieldNames );
       return fieldNames;
@@ -478,16 +479,6 @@ public class CsvInput extends BaseStep implements StepInterface {
     if ( strings != null ) {
       for ( int i = 0; i < strings.length; i++ ) {
         strings[ i ] = strings[ i ].trim();
-      }
-    }
-  }
-
-  static void removeEnclosure( String[] fields, String enclosure ) {
-    if ( fields != null ) {
-      for ( int i = 0; i < fields.length; i++ ) {
-        if ( fields[ i ].startsWith( enclosure ) && fields[ i ].endsWith( enclosure ) && fields[ i ].length() > 1 ) {
-          fields[ i ] = fields[ i ].substring( 1, fields[ i ].length() - 1 );
-        }
       }
     }
   }

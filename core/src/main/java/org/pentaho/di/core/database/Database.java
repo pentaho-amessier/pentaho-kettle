@@ -1994,7 +1994,7 @@ public class Database implements VariableSpace, LoggingObjectInterface {
    * @throws KettleDatabaseException
    *           if DatabaseMetaData is null or some database error occurs
    */
-  private ResultSet getColumnsMetaData( String schema, String table ) throws KettleDatabaseException {
+  public ResultSet getColumnsMetaData( String schema, String table ) throws KettleDatabaseException {
     ResultSet columns = null;
     if ( getDatabaseMetaData() == null ) {
       throw new KettleDatabaseException( BaseMessages.getString( PKG, "Database.Error.UnableToGetDbMeta" ) );

@@ -656,4 +656,19 @@ public class StringUtil {
 
     return source.substring( 0, index );
   }
+
+  public static void removeEnclosure( String[] fields, String enclosure ) {
+    if ( fields != null ) {
+      for ( int i = 0; i < fields.length; i++ ) {
+        fields[ i ] = removeEnclosure( fields[ i ], enclosure );
+      }
+    }
+  }
+
+  public static String removeEnclosure( String field, String enclosure ) {
+    if ( field != null && field.startsWith( enclosure ) && field.endsWith( enclosure ) && field.length() > 1 ) {
+      return field.substring( 1, field.length() - 1 );
+    }
+    return field;
+  }
 }
