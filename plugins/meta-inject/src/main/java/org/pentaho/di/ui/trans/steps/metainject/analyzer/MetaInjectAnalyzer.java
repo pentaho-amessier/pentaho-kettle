@@ -25,6 +25,7 @@ package org.pentaho.di.ui.trans.steps.metainject.analyzer;
 import com.tinkerpop.blueprints.Vertex;
 import org.apache.commons.lang.StringUtils;
 import org.pentaho.di.core.row.RowMetaInterface;
+import org.pentaho.di.core.row.ValueMetaInterface;
 import org.pentaho.di.core.util.StringUtil;
 import org.pentaho.di.trans.TransMeta;
 import org.pentaho.di.trans.step.BaseStepMeta;
@@ -90,9 +91,21 @@ public class MetaInjectAnalyzer extends StepAnalyzer<MetaInjectMeta> {
     KettleAnalyzerUtil.analyze( this, parentTransMeta, meta, rootNode );
   }
 
+  private List<String> getOutputFieldNames( final TransMeta transMeta, final String stepName) {
+    final Map<String, RowMetaInterface> targetFieldsMap = getOutputRowMetaInterfaces( transMeta,
+      transMeta.findStep( stepName ), null, false );
+    final List<String> targetFieldNames = new ArrayList();
+    if ( targetFieldsMap != null ) {
+      final List<ValueMetaInterface> fieldValues = targetFieldsMap.values().iterator().next().getValueMetaList();
+      for ( final ValueMetaInterface fieldValue : fieldValues ) {
+        targetFieldNames.add( fieldValue.getName() );
+      }
+    }
+  }
+
   @Override
   public void postAnalyze( final MetaInjectMeta meta )
-  throws MetaverseAnalyzerException {
+    throws MetaverseAnalyzerException {
 
     final String transformationPath = parentTransMeta.environmentSubstitute( meta.getFileName() );
 
@@ -107,23 +120,22 @@ public class MetaInjectAnalyzer extends StepAnalyzer<MetaInjectMeta> {
       && !StringUtil.isEmpty( meta.getStreamTargetStepname() ) ) {
       // get the field names flowing from the stream source step into the template ktr's streaming target
       // step directly and the output fields of the streamTargetStepVertex, and create "derives" links between the
-      // pairs at each index
-      final Map<String, RowMetaInterface> sourceFields = getOutputRowMetaInterfaces( parentTransMeta,
-        parentTransMeta.findStep( meta.getStreamSourceStepname() ), null, false );
-      final Map<String, RowMetaInterface> targetFields = getOutputRowMetaInterfaces( subTransMeta,
-        subTransMeta.findStep( meta.getStreamTargetStepname() ), null, false );
-
-      final List<Vertex> streamSourceStepOutputFields = findFieldVertices(
-        parentTransMeta, meta.getStreamSourceStepname() );
-      final List<Vertex> streamTargetStepOutputFields = findFieldVertices(
-        subTransMeta, meta.getStreamTargetStepname() );
+      // pairs at each index - we look at the outputRowMeta rather than just finding the vertices in the graph,
+      // because we need to preserve field order, and the gtraph might give us the field Vertices out of order;
+      // the returned maps might contain multiple key-value pairs for multiple steps, but the values in all should be
+      // the same, so we can graph the first value we encounter
+      final List<String> sourceFieldNames = getOutputFieldNames( parentTransMeta, meta.getStreamSourceStepname() );
+      final List<String> targetFieldNames = getOutputFieldNames( subTransMeta, meta.getStreamTargetStepname() );
 
       int index = 0;
-      for ( final Vertex streamSourceStepOutputField : streamSourceStepOutputFields ) {
+      for ( final String sourceFieldName : sourceFieldNames ) {
 
+        final Vertex streamSourceStepOutputField = findFieldVertex( parentTransMeta, meta.getStreamSourceStepname(),
+          sourceFieldName );
         // get the target field at the same index, if it exists
-        if ( index < streamTargetStepOutputFields.size() ) {
-          final Vertex streamTargetStepOutputField = streamTargetStepOutputFields.get( index++ );
+        if ( index < targetFieldNames.size() ) {
+          final Vertex streamTargetStepOutputField = findFieldVertex( subTransMeta, meta.getStreamTargetStepname(),
+            targetFieldNames.get( index++ ) );
           getMetaverseBuilder().addLink( streamSourceStepOutputField, DictionaryConst.LINK_DERIVES,
             streamTargetStepOutputField );
         } else {
@@ -138,6 +150,8 @@ public class MetaInjectAnalyzer extends StepAnalyzer<MetaInjectMeta> {
       = meta.getTargetSourceMapping().entrySet().iterator();
 
     final List<String> verboseProperties = new ArrayList();
+    int mappingCount = 1;
+    int ignoredMappingCount = 1;
     // process the injection mappings
     while ( fieldMappingsIter.hasNext() ) {
       final Map.Entry<TargetStepAttribute, SourceStepField> entry = fieldMappingsIter.next();
@@ -149,7 +163,7 @@ public class MetaInjectAnalyzer extends StepAnalyzer<MetaInjectMeta> {
       // mappings are ignored, and instead, data is sent directly
       final boolean ignoreMapping = sourceInjectorStepField.getStepname().equalsIgnoreCase(
         meta.getStreamSourceStepname() );
-      String mappingKey =  "mapping [" + ( verboseProperties.size() + 1 ) + "]";
+      String mappingKey = "mapping [" + mappingCount++ + "]";
       if ( !ignoreMapping ) {
         // if the target template step name is the same as the step we read from (sourceStepName), we want to get the
         // output fields from the target template step and pass them back (input) into the parent injector step
@@ -157,7 +171,7 @@ public class MetaInjectAnalyzer extends StepAnalyzer<MetaInjectMeta> {
 
           final List<Vertex> targetTemplateFields = findFieldVertices( subTransMeta, targetTemplateStepName );
           for ( final Vertex targetTemplateField : targetTemplateFields ) {
-            metaverseBuilder.addLink( targetTemplateField, DictionaryConst.LINK_INPUTS, stepVertex );
+            getMetaverseBuilder().addLink( targetTemplateField, DictionaryConst.LINK_INPUTS, stepVertex );
           }
         }
         // create "pseudo" step property nodes - these are ANNOTATIONS assigned to step properties
@@ -175,7 +189,7 @@ public class MetaInjectAnalyzer extends StepAnalyzer<MetaInjectMeta> {
         // the target template step
         final Vertex subTransPropertyVertex = findVertexById( subTransPropertyNode.getStringID() );
         if ( subTransPropertyVertex != null ) {
-          metaverseBuilder.addLink( targetTemplateStepVertex, DictionaryConst.LINK_CONTAINS, subTransPropertyVertex );
+          getMetaverseBuilder().addLink( targetTemplateStepVertex, DictionaryConst.LINK_CONTAINS, subTransPropertyVertex );
         }
 
         final String injectorStepName = sourceInjectorStepField.getStepname();
@@ -183,17 +197,15 @@ public class MetaInjectAnalyzer extends StepAnalyzer<MetaInjectMeta> {
         final IMetaverseNode matchingInjectorFieldNode = getInputs().findNode( injectorStepName, injectotFieldName );
         if ( matchingInjectorFieldNode != null ) {
           // add 'populates' links back to the real ETL meta output fields
-          metaverseBuilder.addLink( matchingInjectorFieldNode, DictionaryConst.LINK_POPULATES, subTransPropertyNode );
+          getMetaverseBuilder().addLink( matchingInjectorFieldNode, DictionaryConst.LINK_POPULATES, subTransPropertyNode );
         }
       } else {
-        mappingKey =  "ignored mapping [" + ( verboseProperties.size() + 1 ) + "]";
+        mappingKey = "ignored mapping [" + ignoredMappingCount++ + "]";
       }
       final StringBuilder mapping = new StringBuilder();
       mapping.append( sourceInjectorStepField.getStepname() ).append( ": " )
-        .append( sourceInjectorStepField.getField() )
-        .append( " > [" ).append( subTransMeta.getName() ).append( "] " )
-        .append( targetTemplateStepName  ).append( ": " )
-        .append( targetTemplateStepAttr.getAttributeKey() );
+        .append( sourceInjectorStepField.getField() ).append( " > [" ).append( subTransMeta.getName() ).append( "] " )
+        .append( targetTemplateStepName ).append( ": " ).append( targetTemplateStepAttr.getAttributeKey() );
       verboseProperties.add( mappingKey );
       stepVertex.setProperty( mappingKey, mapping.toString() );
     }
@@ -204,17 +216,17 @@ public class MetaInjectAnalyzer extends StepAnalyzer<MetaInjectMeta> {
       // we created this node earlier, so we know it exists
       final List<Vertex> sourceStepFields = findFieldVertices( subTransMeta, sourceStepName );
       for ( final Vertex sourceStepField : sourceStepFields ) {
-        metaverseBuilder.addLink( sourceStepField, DictionaryConst.LINK_INPUTS, stepVertex );
-
+        getMetaverseBuilder().addLink( sourceStepField, DictionaryConst.LINK_INPUTS, stepVertex );
         // find a field in this step with the same name as the source step field
         final Vertex derivedField = findFieldVertex( parentTransMeta, stepVertex.getProperty(
           DictionaryConst.PROPERTY_NAME ).toString(),
           sourceStepField.getProperty( DictionaryConst.PROPERTY_NAME ).toString() );
         if ( derivedField != null ) {
-          metaverseBuilder.addLink( sourceStepField, DictionaryConst.LINK_DERIVES, derivedField );
+          getMetaverseBuilder().addLink( sourceStepField, DictionaryConst.LINK_DERIVES, derivedField );
         }
       }
     }
+    stepVertex.setProperty( DictionaryConst.PROPERTY_VERBOSE_DETAILS, StringUtils.join( verboseProperties, "," ) );
   }
 
   @Override protected IClonableStepAnalyzer newInstance() {
